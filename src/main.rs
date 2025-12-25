@@ -1,0 +1,209 @@
+mod actors;
+mod config;
+mod db;
+mod handlers;
+mod middleware;
+mod metrics;
+mod models;
+mod telemetry;
+
+use actix::Actor;
+use actix_cors::Cors;
+use actix_files::Files;
+use actix_web::{middleware as actix_middleware, web, App, HttpResponse, HttpServer};
+use std::sync::Arc;
+use tracing_actix_web::TracingLogger;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        handlers::oauth::authorize,
+        handlers::oauth::token,
+        handlers::token::introspect,
+        handlers::token::revoke,
+        handlers::client::register_client,
+        handlers::wellknown::openid_configuration,
+        handlers::admin::health,
+        handlers::admin::readiness,
+        handlers::admin::system_metrics,
+    ),
+    components(
+        schemas(
+            models::TokenResponse,
+            models::IntrospectionResponse,
+            models::ClientRegistration,
+            models::ClientCredentials,
+            models::OAuth2Error,
+        )
+    ),
+    tags(
+        (name = "OAuth2", description = "OAuth2 authentication and authorization endpoints"),
+        (name = "Client Management", description = "Client registration and management"),
+        (name = "Token Management", description = "Token introspection and revocation"),
+        (name = "Admin", description = "Administrative and monitoring endpoints"),
+        (name = "Observability", description = "Health checks and metrics"),
+    ),
+    info(
+        title = "OAuth2 Server API",
+        version = "0.1.0",
+        description = "A complete OAuth2 server implementation with Actix-web",
+        contact(
+            name = "API Support",
+            email = "support@example.com"
+        ),
+        license(
+            name = "MIT OR Apache-2.0"
+        )
+    )
+)]
+struct ApiDoc;
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    // Initialize telemetry and tracing
+    telemetry::init_telemetry("oauth2_server")
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to initialize telemetry: {}", e);
+            // Fall back to basic logging
+            env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+        });
+
+    tracing::info!("Starting OAuth2 Server...");
+
+    // Load configuration
+    let config = config::Config::default();
+    tracing::info!("Configuration loaded");
+
+    // Initialize metrics
+    let metrics = metrics::Metrics::new()
+        .expect("Failed to initialize metrics");
+    tracing::info!("Metrics initialized");
+
+    // Initialize database
+    let db = db::Database::new(&config.database.url)
+        .await
+        .expect("Failed to connect to database");
+    
+    db.init().await.expect("Failed to initialize database");
+    tracing::info!("Database initialized");
+
+    let db = Arc::new(db);
+    let jwt_secret = config.jwt.secret.clone();
+
+    // Start actors
+    let token_actor = actors::TokenActor::new(db.clone(), jwt_secret.clone()).start();
+    let client_actor = actors::ClientActor::new(db.clone()).start();
+    let auth_actor = actors::AuthActor::new(db.clone()).start();
+
+    tracing::info!("Actors started");
+
+    // OpenAPI documentation
+    let openapi = ApiDoc::openapi();
+
+    let bind_addr = format!("{}:{}", config.server.host, config.server.port);
+    tracing::info!("Starting server at http://{}", bind_addr);
+    tracing::info!("Swagger UI available at http://{}/swagger-ui", bind_addr);
+    tracing::info!("Admin dashboard at http://{}/admin", bind_addr);
+    tracing::info!("Metrics endpoint at http://{}/metrics", bind_addr);
+
+    // Start HTTP server
+    let server = HttpServer::new(move || {
+        let cors = Cors::default()
+            .allow_any_origin()
+            .allow_any_method()
+            .allow_any_header()
+            .max_age(3600);
+
+        App::new()
+            // Middleware
+            .wrap(TracingLogger::default())
+            .wrap(actix_middleware::Logger::default())
+            .wrap(actix_middleware::Compress::default())
+            .wrap(middleware::MetricsMiddleware::new(metrics.clone()))
+            .wrap(cors)
+            // Shared state
+            .app_data(web::Data::new(token_actor.clone()))
+            .app_data(web::Data::new(client_actor.clone()))
+            .app_data(web::Data::new(auth_actor.clone()))
+            .app_data(web::Data::new(jwt_secret.clone()))
+            .app_data(web::Data::new(db.clone()))
+            .app_data(web::Data::new(metrics.clone()))
+            // OAuth2 endpoints
+            .service(
+                web::scope("/oauth")
+                    .route("/authorize", web::get().to(handlers::oauth::authorize))
+                    .route("/token", web::post().to(handlers::oauth::token))
+                    .route("/introspect", web::post().to(handlers::token::introspect))
+                    .route("/revoke", web::post().to(handlers::token::revoke)),
+            )
+            // Client management endpoints
+            .service(
+                web::scope("/clients")
+                    .route("/register", web::post().to(handlers::client::register_client)),
+            )
+            // Well-known endpoints
+            .service(
+                web::scope("/.well-known")
+                    .route("/openid-configuration", web::get().to(handlers::wellknown::openid_configuration)),
+            )
+            // Admin endpoints
+            .service(
+                web::scope("/admin")
+                    .route("", web::get().to(admin_dashboard))
+                    .service(
+                        web::scope("/api")
+                            .route("/dashboard", web::get().to(handlers::admin::dashboard))
+                            .route("/clients", web::get().to(handlers::admin::list_clients))
+                            .route("/tokens", web::get().to(handlers::admin::list_tokens))
+                            .route("/tokens/{id}/revoke", web::post().to(handlers::admin::admin_revoke_token))
+                            .route("/clients/{id}", web::delete().to(handlers::admin::delete_client))
+                    )
+            )
+            // Observability endpoints
+            .route("/health", web::get().to(handlers::admin::health))
+            .route("/ready", web::get().to(handlers::admin::readiness))
+            .route("/metrics", web::get().to(handlers::admin::system_metrics))
+            // Swagger UI
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", openapi.clone()),
+            )
+            // Static files
+            .service(Files::new("/static", "./static"))
+    })
+    .bind(&bind_addr)?
+    .run();
+
+    server.await?;
+
+    // Shutdown telemetry
+    telemetry::shutdown_telemetry();
+
+    Ok(())
+}
+
+// Admin dashboard HTML page
+async fn admin_dashboard() -> HttpResponse {
+    let html = std::fs::read_to_string("templates/admin_dashboard.html")
+        .unwrap_or_else(|_| r#"
+            <!DOCTYPE html>
+            <html>
+            <head><title>Admin Dashboard</title></head>
+            <body>
+                <h1>OAuth2 Server Admin Dashboard</h1>
+                <p>Dashboard template not found. Please ensure templates/admin_dashboard.html exists.</p>
+                <ul>
+                    <li><a href="/swagger-ui">API Documentation</a></li>
+                    <li><a href="/metrics">Prometheus Metrics</a></li>
+                    <li><a href="/health">Health Check</a></li>
+                </ul>
+            </body>
+            </html>
+        "#.to_string());
+    
+    HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(html)
+}
