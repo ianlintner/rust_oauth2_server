@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["admin","auth","client","oauth","token","wellknown"]};

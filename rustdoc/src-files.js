@@ -1,0 +1,2 @@
+createSrcSidebar('[["rust_oauth2_server",["",[["actors",[],["auth_actor.rs","client_actor.rs","mod.rs","token_actor.rs"]],["config",[],["mod.rs"]],["db",[],["mod.rs"]],["handlers",[],["admin.rs","auth.rs","client.rs","mod.rs","oauth.rs","token.rs","wellknown.rs"]],["middleware",[],["auth_middleware.rs","metrics_middleware.rs","mod.rs"]],["models",[],["authorization.rs","client.rs","error.rs","mod.rs","scope.rs","social.rs","token.rs","user.rs"]],["services",[],["mod.rs","social_login.rs"]]],["main.rs","metrics.rs","telemetry.rs"]]]]');
+//{"start":19,"fragment_lengths":[518]}

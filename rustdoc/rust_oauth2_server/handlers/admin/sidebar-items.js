@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["admin_revoke_token","dashboard","delete_client","health","list_clients","list_tokens","readiness","system_metrics"],"struct":["ClientInfo","DashboardData","TokenInfo"]};

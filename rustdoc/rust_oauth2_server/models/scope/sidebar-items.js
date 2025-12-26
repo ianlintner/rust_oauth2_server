@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["intersect_scopes","validate_scopes"],"struct":["Scope"]};

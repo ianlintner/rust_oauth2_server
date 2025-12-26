@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["auth_callback","auth_success","github_login","google_login","handle_github_callback","handle_google_callback","handle_microsoft_callback","login_page","logout","microsoft_login"],"struct":["AuthCallbackQuery"]};

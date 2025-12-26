@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["authorization","client","error","scope","social","token","user"]};

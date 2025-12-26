@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["authorize","handle_authorization_code_grant","handle_client_credentials_grant","handle_password_grant","handle_refresh_token_grant","token"],"struct":["AuthorizeQuery","TokenRequest"]};

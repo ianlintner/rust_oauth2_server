@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["generate_code","validate_pkce"],"struct":["AuthActor","CreateAuthorizationCode","ValidateAuthorizationCode"]};
