@@ -1,5 +1,8 @@
 # Rust OAuth2 Server
 
+<img width="512" alt="image" src="https://github.com/user-attachments/assets/e536a0a1-9a82-4b7f-9583-8ffee56697f8" />
+
+
 A complete, production-ready OAuth2 authorization server built with Rust and Actix-web, featuring the actor model for concurrency, type safety, and comprehensive observability.
 
 ## 🌟 Overview
