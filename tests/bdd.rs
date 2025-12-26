@@ -55,6 +55,14 @@ async fn user_is_authenticated(_world: &mut OAuth2World) {
 // Authorization Code Flow steps
 #[when(expr = "the client requests authorization with scope {string}")]
 async fn request_authorization_with_scope(world: &mut OAuth2World, scope: String) {
+    // Check if there's an allowed_scope set (for error handling scenario)
+    if let Some(allowed_scope) = world.token_metadata.get("allowed_scope") {
+        // This is the error handling scenario - check if requested scope is allowed
+        if !allowed_scope.contains(&scope) {
+            world.error = Some("invalid_scope".to_string());
+            return;
+        }
+    }
     world.scope = Some(scope);
 }
 
@@ -212,13 +220,16 @@ async fn user_exists(_world: &mut OAuth2World, _username: String, _password: Str
 async fn request_token_with_password(
     world: &mut OAuth2World,
     username: String,
-    _password: String,
+    password: String,
 ) {
-    if username == "testuser" {
+    if username == "testuser" && password == "testpass" {
         world.access_token = Some("mock_access_token_password".to_string());
         world.refresh_token = Some("mock_refresh_token".to_string());
+        world.error = None;
     } else {
         world.error = Some("invalid_grant".to_string());
+        world.access_token = None;
+        world.refresh_token = None;
     }
 }
 
@@ -382,7 +393,7 @@ async fn use_expired_refresh_token(world: &mut OAuth2World) {
 }
 
 // PKCE specific steps
-#[given("a public client is registered with ID {string}")]
+#[given(expr = "a public client is registered with ID {string}")]
 async fn public_client_registered(world: &mut OAuth2World, client_id: String) {
     world.client_id = Some(client_id);
 }
@@ -429,17 +440,6 @@ async fn send_malformed_request(world: &mut OAuth2World) {
 #[when("an unregistered client attempts to request a token")]
 async fn unregistered_client_request(world: &mut OAuth2World) {
     world.error = Some("invalid_client".to_string());
-}
-
-#[given(expr = "a client is registered with scope {string}")]
-async fn client_registered_with_scope(world: &mut OAuth2World, scope: String) {
-    world.client_id = Some("test_client".to_string());
-    world.scope = Some(scope);
-}
-
-#[when(expr = "the client requests authorization with scope {string}")]
-async fn request_authorization_with_invalid_scope(world: &mut OAuth2World, _scope: String) {
-    world.error = Some("invalid_scope".to_string());
 }
 
 #[when("the user denies authorization")]
