@@ -35,7 +35,7 @@ spec:
       containers:
         - name: oauth2-server
           image: ghcr.io/ianlintner/rust_oauth2_server:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c"]
           args:
             - |

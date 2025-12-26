@@ -91,6 +91,7 @@ jobs:
           
           resources:
             - namespace.yaml
+            - rbac.yaml
             - configmap.yaml
             - secret.yaml
             - postgres-pvc.yaml

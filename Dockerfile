@@ -1,7 +1,7 @@
 # Multi-stage build for Rust OAuth2 Server
 
 # Stage 1: Builder
-FROM rust:1.75-slim as builder
+FROM rust:1.75-slim AS builder
 
 WORKDIR /app
 
@@ -40,7 +40,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the built binary from builder
-COPY --from=builder /app/target/release/rust_oauth2_server /app/oauth2_server
+COPY --from=builder /app/target/release/rust_oauth2_server /app/rust_oauth2_server
+
+# Backwards-compatibility: keep the old path if anything still references it
+RUN ln -sf /app/rust_oauth2_server /app/oauth2_server
 
 # Copy templates and static files
 COPY templates ./templates
@@ -59,4 +62,4 @@ ENV OAUTH2_DATABASE_URL=sqlite:/app/data/oauth2.db
 ENV RUST_LOG=info
 
 # Run the binary
-CMD ["/app/oauth2_server"]
+CMD ["/app/rust_oauth2_server"]
