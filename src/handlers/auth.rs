@@ -3,8 +3,7 @@ use crate::services::SocialLoginService;
 use actix_session::Session;
 use actix_web::{web, HttpResponse, Result};
 use oauth2::{
-    reqwest::async_http_client, AuthorizationCode, CsrfToken, PkceCodeChallenge, Scope,
-    TokenResponse as OAuth2TokenResponse,
+    AuthorizationCode, CsrfToken, PkceCodeChallenge, Scope, TokenResponse as OAuth2TokenResponse,
 };
 use serde::Deserialize;
 use std::sync::Arc;
@@ -178,9 +177,12 @@ async fn handle_google_callback(
 
     let client = SocialLoginService::get_google_client(provider_config)?;
 
+    // TODO: Reuse a shared reqwest::Client instance for better performance
+    // HTTP clients maintain connection pools and should be created once and reused
+    let http_client = reqwest::Client::new();
     let token_result = client
         .exchange_code(AuthorizationCode::new(code.to_string()))
-        .request_async(async_http_client)
+        .request_async(&http_client)
         .await
         .map_err(|e| OAuth2Error::new("token_exchange_failed", Some(&e.to_string())))?;
 
@@ -199,9 +201,11 @@ async fn handle_microsoft_callback(
 
     let client = SocialLoginService::get_microsoft_client(provider_config)?;
 
+    // TODO: Reuse a shared reqwest::Client instance for better performance
+    let http_client = reqwest::Client::new();
     let token_result = client
         .exchange_code(AuthorizationCode::new(code.to_string()))
-        .request_async(async_http_client)
+        .request_async(&http_client)
         .await
         .map_err(|e| OAuth2Error::new("token_exchange_failed", Some(&e.to_string())))?;
 
@@ -220,9 +224,11 @@ async fn handle_github_callback(
 
     let client = SocialLoginService::get_github_client(provider_config)?;
 
+    // TODO: Reuse a shared reqwest::Client instance for better performance
+    let http_client = reqwest::Client::new();
     let token_result = client
         .exchange_code(AuthorizationCode::new(code.to_string()))
-        .request_async(async_http_client)
+        .request_async(&http_client)
         .await
         .map_err(|e| OAuth2Error::new("token_exchange_failed", Some(&e.to_string())))?;
 
