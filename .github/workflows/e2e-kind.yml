@@ -135,7 +135,8 @@ jobs:
 
       - name: Wait for PostgreSQL
         run: |
-          kubectl wait --for=condition=ready pod -l app=postgres -n oauth2-server --timeout=300s
+          echo "Waiting for PostgreSQL StatefulSet to be ready..."
+          kubectl rollout status statefulset/postgres -n oauth2-server --timeout=300s
 
       - name: Wait for migrations
         run: |
@@ -144,7 +145,8 @@ jobs:
 
       - name: Wait for OAuth2 server
         run: |
-          kubectl wait --for=condition=ready pod -l app=oauth2-server -n oauth2-server --timeout=300s
+          echo "Waiting for deployment to be ready..."
+          kubectl rollout status deployment/oauth2-server -n oauth2-server --timeout=300s
 
       - name: Check deployment status
         run: |
@@ -154,12 +156,12 @@ jobs:
       - name: Check server logs
         if: always()
         run: |
-          kubectl logs -l app=oauth2-server -n oauth2-server --tail=100
+          kubectl logs deployment/oauth2-server -n oauth2-server --tail=100 || echo "No logs available yet"
 
       - name: Test health endpoint
         run: |
           sleep 10
-          curl -f http://localhost:8080/health || (kubectl logs -l app=oauth2-server -n oauth2-server && exit 1)
+          curl -f http://localhost:8080/health || (kubectl logs deployment/oauth2-server -n oauth2-server && exit 1)
 
       - name: Test readiness endpoint
         run: |
@@ -220,8 +222,8 @@ jobs:
       - name: Export cluster logs
         if: failure()
         run: |
-          kubectl logs -n oauth2-server -l app=oauth2-server --tail=200 > oauth2-server.log
-          kubectl logs -n oauth2-server -l app=postgres --tail=200 > postgres.log
+          kubectl logs deployment/oauth2-server -n oauth2-server --tail=200 > oauth2-server.log || echo "No oauth2-server logs"
+          kubectl logs statefulset/postgres -n oauth2-server --tail=200 > postgres.log || echo "No postgres logs"
           kubectl describe pods -n oauth2-server > pods-describe.log
 
       - name: Upload logs
