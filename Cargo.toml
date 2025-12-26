@@ -71,6 +71,7 @@ tracing-actix-web = "0.7"
 
 # Async utilities
 futures = "0.3"
+async-trait = "0.1"
 
 # Admin UI templating
 tera = "1.19"
