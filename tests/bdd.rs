@@ -21,15 +21,6 @@ pub struct OAuth2World {
     pub token_metadata: HashMap<String, String>,
 }
 
-impl OAuth2World {
-    fn new() -> Self {
-        Self {
-            server_url: "http://localhost:8080".to_string(),
-            ..Default::default()
-        }
-    }
-}
-
 // Background steps
 #[given("an OAuth2 server is running")]
 async fn server_is_running(world: &mut OAuth2World) {
@@ -61,7 +52,7 @@ async fn request_authorization_with_scope(world: &mut OAuth2World, scope: String
         // Split scopes and check for exact matches
         let allowed_scopes: Vec<&str> = allowed_scope.split_whitespace().collect();
         let requested_scopes: Vec<&str> = scope.split_whitespace().collect();
-        
+
         let all_allowed = requested_scopes.iter().all(|s| allowed_scopes.contains(s));
         if !all_allowed {
             world.error = Some("invalid_scope".to_string());
@@ -90,7 +81,10 @@ async fn exchange_code_for_token(world: &mut OAuth2World) {
 
 #[then("an access token is issued")]
 async fn access_token_issued(world: &mut OAuth2World) {
-    assert!(world.access_token.is_some(), "Access token should be issued");
+    assert!(
+        world.access_token.is_some(),
+        "Access token should be issued"
+    );
 }
 
 #[then(expr = "the token has scope {string}")]
@@ -222,11 +216,7 @@ async fn user_exists(_world: &mut OAuth2World, _username: String, _password: Str
 }
 
 #[when(expr = "the client requests a token with username {string} and password {string}")]
-async fn request_token_with_password(
-    world: &mut OAuth2World,
-    username: String,
-    password: String,
-) {
+async fn request_token_with_password(world: &mut OAuth2World, username: String, password: String) {
     if username == "testuser" && password == "testpass" {
         world.access_token = Some("mock_access_token_password".to_string());
         world.refresh_token = Some("mock_refresh_token".to_string());
@@ -257,9 +247,15 @@ async fn valid_token_exists(world: &mut OAuth2World) {
 
 #[when("the resource server introspects the token")]
 async fn introspect_token(world: &mut OAuth2World) {
-    world.token_metadata.insert("scope".to_string(), "read write".to_string());
-    world.token_metadata.insert("client_id".to_string(), "test_client".to_string());
-    world.token_metadata.insert("user_id".to_string(), "user_123".to_string());
+    world
+        .token_metadata
+        .insert("scope".to_string(), "read write".to_string());
+    world
+        .token_metadata
+        .insert("client_id".to_string(), "test_client".to_string());
+    world
+        .token_metadata
+        .insert("user_id".to_string(), "user_123".to_string());
 }
 
 #[then("the response indicates the token is active")]
@@ -364,12 +360,18 @@ async fn request_token_with_refresh(world: &mut OAuth2World) {
 
 #[then("a new access token is issued")]
 async fn new_access_token_issued(world: &mut OAuth2World) {
-    assert!(world.access_token.is_some(), "New access token should be issued");
+    assert!(
+        world.access_token.is_some(),
+        "New access token should be issued"
+    );
 }
 
 #[then("a new refresh token is issued")]
 async fn new_refresh_token_issued(world: &mut OAuth2World) {
-    assert!(world.refresh_token.is_some(), "New refresh token should be issued");
+    assert!(
+        world.refresh_token.is_some(),
+        "New refresh token should be issued"
+    );
 }
 
 #[when("the client requests a token with an invalid refresh token")]
@@ -469,8 +471,5 @@ async fn make_token_request(world: &mut OAuth2World) {
 
 #[tokio::main]
 async fn main() {
-    OAuth2World::cucumber()
-        .run("tests/features")
-        .await;
+    OAuth2World::cucumber().run("tests/features").await;
 }
-

@@ -8,17 +8,15 @@ mod oauth_handler_tests {
     #[actix_web::test]
     async fn test_authorize_endpoint_requires_params() {
         // Test that authorize endpoint validates required parameters
-        let app = test::init_service(
-            App::new().route(
-                "/oauth/authorize",
-                web::get().to(|| async {
-                    actix_web::HttpResponse::BadRequest().json(json!({
-                        "error": "invalid_request",
-                        "error_description": "Missing required parameters"
-                    }))
-                }),
-            ),
-        )
+        let app = test::init_service(App::new().route(
+            "/oauth/authorize",
+            web::get().to(|| async {
+                actix_web::HttpResponse::BadRequest().json(json!({
+                    "error": "invalid_request",
+                    "error_description": "Missing required parameters"
+                }))
+            }),
+        ))
         .await;
 
         let req = test::TestRequest::get()
@@ -31,22 +29,20 @@ mod oauth_handler_tests {
     #[actix_web::test]
     async fn test_token_endpoint_validates_grant_type() {
         // Test that token endpoint validates grant_type parameter
-        let app = test::init_service(
-            App::new().route(
-                "/oauth/token",
-                web::post().to(|| async {
-                    actix_web::HttpResponse::BadRequest().json(json!({
-                        "error": "unsupported_grant_type",
-                        "error_description": "Grant type not supported"
-                    }))
-                }),
-            ),
-        )
+        let app = test::init_service(App::new().route(
+            "/oauth/token",
+            web::post().to(|| async {
+                actix_web::HttpResponse::BadRequest().json(json!({
+                    "error": "unsupported_grant_type",
+                    "error_description": "Grant type not supported"
+                }))
+            }),
+        ))
         .await;
 
         let req = test::TestRequest::post()
             .uri("/oauth/token")
-            .set_form(&[("grant_type", "invalid")])
+            .set_form([("grant_type", "invalid")])
             .to_request();
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), 400);
@@ -55,22 +51,20 @@ mod oauth_handler_tests {
     #[actix_web::test]
     async fn test_authorization_code_grant_validation() {
         // Test authorization code grant type requires code parameter
-        let app = test::init_service(
-            App::new().route(
-                "/oauth/token",
-                web::post().to(|| async {
-                    actix_web::HttpResponse::BadRequest().json(json!({
-                        "error": "invalid_request",
-                        "error_description": "Missing code parameter"
-                    }))
-                }),
-            ),
-        )
+        let app = test::init_service(App::new().route(
+            "/oauth/token",
+            web::post().to(|| async {
+                actix_web::HttpResponse::BadRequest().json(json!({
+                    "error": "invalid_request",
+                    "error_description": "Missing code parameter"
+                }))
+            }),
+        ))
         .await;
 
         let req = test::TestRequest::post()
             .uri("/oauth/token")
-            .set_form(&[
+            .set_form([
                 ("grant_type", "authorization_code"),
                 ("client_id", "test_client"),
             ])
@@ -82,22 +76,20 @@ mod oauth_handler_tests {
     #[actix_web::test]
     async fn test_client_credentials_grant_validation() {
         // Test client credentials grant requires client_secret
-        let app = test::init_service(
-            App::new().route(
-                "/oauth/token",
-                web::post().to(|| async {
-                    actix_web::HttpResponse::BadRequest().json(json!({
-                        "error": "invalid_client",
-                        "error_description": "Missing client_secret"
-                    }))
-                }),
-            ),
-        )
+        let app = test::init_service(App::new().route(
+            "/oauth/token",
+            web::post().to(|| async {
+                actix_web::HttpResponse::BadRequest().json(json!({
+                    "error": "invalid_client",
+                    "error_description": "Missing client_secret"
+                }))
+            }),
+        ))
         .await;
 
         let req = test::TestRequest::post()
             .uri("/oauth/token")
-            .set_form(&[
+            .set_form([
                 ("grant_type", "client_credentials"),
                 ("client_id", "test_client"),
             ])
@@ -109,25 +101,20 @@ mod oauth_handler_tests {
     #[actix_web::test]
     async fn test_password_grant_validation() {
         // Test password grant requires username and password
-        let app = test::init_service(
-            App::new().route(
-                "/oauth/token",
-                web::post().to(|| async {
-                    actix_web::HttpResponse::BadRequest().json(json!({
-                        "error": "invalid_request",
-                        "error_description": "Missing username or password"
-                    }))
-                }),
-            ),
-        )
+        let app = test::init_service(App::new().route(
+            "/oauth/token",
+            web::post().to(|| async {
+                actix_web::HttpResponse::BadRequest().json(json!({
+                    "error": "invalid_request",
+                    "error_description": "Missing username or password"
+                }))
+            }),
+        ))
         .await;
 
         let req = test::TestRequest::post()
             .uri("/oauth/token")
-            .set_form(&[
-                ("grant_type", "password"),
-                ("client_id", "test_client"),
-            ])
+            .set_form([("grant_type", "password"), ("client_id", "test_client")])
             .to_request();
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), 400);
@@ -136,21 +123,19 @@ mod oauth_handler_tests {
     #[actix_web::test]
     async fn test_introspect_endpoint_exists() {
         // Test that introspection endpoint exists
-        let app = test::init_service(
-            App::new().route(
-                "/oauth/introspect",
-                web::post().to(|| async {
-                    actix_web::HttpResponse::Ok().json(json!({
-                        "active": false
-                    }))
-                }),
-            ),
-        )
+        let app = test::init_service(App::new().route(
+            "/oauth/introspect",
+            web::post().to(|| async {
+                actix_web::HttpResponse::Ok().json(json!({
+                    "active": false
+                }))
+            }),
+        ))
         .await;
 
         let req = test::TestRequest::post()
             .uri("/oauth/introspect")
-            .set_form(&[("token", "test_token")])
+            .set_form([("token", "test_token")])
             .to_request();
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());
@@ -159,17 +144,15 @@ mod oauth_handler_tests {
     #[actix_web::test]
     async fn test_revoke_endpoint_exists() {
         // Test that revocation endpoint exists
-        let app = test::init_service(
-            App::new().route(
-                "/oauth/revoke",
-                web::post().to(|| async { actix_web::HttpResponse::Ok().finish() }),
-            ),
-        )
+        let app = test::init_service(App::new().route(
+            "/oauth/revoke",
+            web::post().to(|| async { actix_web::HttpResponse::Ok().finish() }),
+        ))
         .await;
 
         let req = test::TestRequest::post()
             .uri("/oauth/revoke")
-            .set_form(&[("token", "test_token")])
+            .set_form([("token", "test_token")])
             .to_request();
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());
@@ -185,7 +168,7 @@ mod token_model_tests {
         // Test token expiration calculation
         let now = Utc::now();
         let expiry = now + Duration::seconds(3600);
-        
+
         assert!(expiry > now);
         assert_eq!((expiry - now).num_seconds(), 3600);
     }
@@ -196,7 +179,7 @@ mod token_model_tests {
         let now = Utc::now();
         let past = now - Duration::seconds(3600);
         let future = now + Duration::seconds(3600);
-        
+
         assert!(past < now, "Past time should be before now");
         assert!(future > now, "Future time should be after now");
     }
@@ -206,7 +189,7 @@ mod token_model_tests {
         // Test scope string parsing
         let scope = "read write admin";
         let scopes: Vec<&str> = scope.split_whitespace().collect();
-        
+
         assert_eq!(scopes.len(), 3);
         assert!(scopes.contains(&"read"));
         assert!(scopes.contains(&"write"));
@@ -217,11 +200,19 @@ mod token_model_tests {
     fn test_scope_validation() {
         // Test that scope contains only valid characters
         let valid_scope = "read:user write:posts";
-        let has_invalid_chars = valid_scope.chars().any(|c| !c.is_alphanumeric() && c != ':' && c != ' ' && c != '_');
-        assert!(!has_invalid_chars, "Valid scope should not contain invalid characters");
-        
+        let has_invalid_chars = valid_scope
+            .chars()
+            .any(|c| !c.is_alphanumeric() && c != ':' && c != ' ' && c != '_');
+        assert!(
+            !has_invalid_chars,
+            "Valid scope should not contain invalid characters"
+        );
+
         let invalid_scope = "read<script>";
-        assert!(invalid_scope.contains('<'), "Invalid scope should contain dangerous characters");
+        assert!(
+            invalid_scope.contains('<'),
+            "Invalid scope should contain dangerous characters"
+        );
     }
 }
 
@@ -242,7 +233,7 @@ mod authorization_code_tests {
         // Test authorization code has 10 minute expiration
         let created_at = Utc::now();
         let expires_at = created_at + Duration::minutes(10);
-        
+
         assert_eq!((expires_at - created_at).num_minutes(), 10);
     }
 
@@ -257,7 +248,9 @@ mod authorization_code_tests {
     fn test_pkce_challenge_base64() {
         // Test PKCE challenge is base64url encoded
         let challenge = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
-        assert!(challenge.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_'));
+        assert!(challenge
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_'));
     }
 }
 
@@ -286,7 +279,7 @@ mod client_validation_tests {
             "https://example.com/oauth/callback",
             "myapp://callback",
         ];
-        
+
         for uri in valid_uris {
             assert!(uri.contains("://"));
         }
@@ -296,7 +289,10 @@ mod client_validation_tests {
     fn test_invalid_redirect_uri_javascript_scheme() {
         // Test that javascript: scheme URIs are rejected
         let uri = "javascript:alert(1)";
-        assert!(uri.starts_with("javascript:"), "Should detect javascript: scheme");
+        assert!(
+            uri.starts_with("javascript:"),
+            "Should detect javascript: scheme"
+        );
     }
 
     #[test]
@@ -326,7 +322,7 @@ mod error_response_tests {
             "error_description": "Missing required parameter",
             "error_uri": "https://tools.ietf.org/html/rfc6749#section-5.2"
         });
-        
+
         assert!(error["error"].is_string());
         assert_eq!(error["error"], "invalid_request");
     }
@@ -344,7 +340,7 @@ mod error_response_tests {
             "access_denied",
             "server_error",
         ];
-        
+
         for code in error_codes {
             assert!(!code.is_empty());
             assert!(code.chars().all(|c| c.is_lowercase() || c == '_'));
@@ -374,7 +370,7 @@ mod jwt_tests {
             iat: Utc::now().timestamp(),
             scope: "read write".to_string(),
         };
-        
+
         assert!(!claims.sub.is_empty());
         assert!(claims.exp > claims.iat);
     }
@@ -384,15 +380,15 @@ mod jwt_tests {
         // Test JWT expiration time is set correctly
         let now = Utc::now().timestamp();
         let exp = now + 3600; // 1 hour
-        
+
         assert_eq!(exp - now, 3600);
     }
 }
 
 #[cfg(test)]
 mod security_tests {
-    use sha2::{Sha256, Digest};
-    use base64::{Engine as _, engine::general_purpose};
+    use base64::{engine::general_purpose, Engine as _};
+    use sha2::{Digest, Sha256};
 
     #[test]
     fn test_password_hashing() {
@@ -400,7 +396,7 @@ mod security_tests {
         let password = "test_password";
         let hash1 = format!("{:x}", Sha256::digest(password.as_bytes()));
         let hash2 = format!("{:x}", Sha256::digest(password.as_bytes()));
-        
+
         // Same password should produce same hash
         assert_eq!(hash1, hash2);
         // Hash should be different from password
@@ -420,7 +416,7 @@ mod security_tests {
         let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
         let hash = Sha256::digest(verifier.as_bytes());
         let challenge = general_purpose::URL_SAFE_NO_PAD.encode(hash);
-        
+
         assert!(!challenge.is_empty());
     }
 
@@ -429,7 +425,7 @@ mod security_tests {
         // Test that generated tokens are random
         let token1 = uuid::Uuid::new_v4().to_string();
         let token2 = uuid::Uuid::new_v4().to_string();
-        
+
         assert_ne!(token1, token2);
     }
 }
@@ -441,7 +437,7 @@ mod scope_tests {
         // Test scope checking logic
         let granted_scope = "read write";
         let required_scope = "read";
-        
+
         assert!(granted_scope.contains(required_scope));
     }
 
@@ -450,7 +446,7 @@ mod scope_tests {
         // Test scope checking with insufficient permissions
         let granted_scope = "read";
         let required_scope = "write";
-        
+
         assert!(!granted_scope.contains(required_scope));
     }
 
@@ -459,7 +455,7 @@ mod scope_tests {
         // Test multiple scope handling
         let scopes = "read write admin";
         let scope_list: Vec<&str> = scopes.split_whitespace().collect();
-        
+
         assert_eq!(scope_list.len(), 3);
         assert!(scope_list.contains(&"admin"));
     }
