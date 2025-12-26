@@ -25,6 +25,7 @@ graph LR
 ## 🚀 Features
 
 ### OAuth2 Compliance
+
 - ✅ **Authorization Code Flow** with PKCE support
 - ✅ **Client Credentials Flow** for service-to-service
 - ✅ **Resource Owner Password Credentials Flow**
@@ -34,6 +35,7 @@ graph LR
 - ✅ **Discovery Endpoint** (RFC 8414)
 
 ### Architecture
+
 - 🎭 **Actor Model** using Actix for concurrent request handling
 - 🔒 **Type-Safe** Rust implementation
 - 🔐 **JWT Tokens** with configurable expiration
@@ -50,6 +52,7 @@ graph LR
 - See [Eventing Documentation](docs/eventing.md) for details
 
 ### Observability & Monitoring
+
 - 📊 **Prometheus Metrics** - Request rates, token metrics, database performance
 - 🔍 **OpenTelemetry Tracing** - Distributed tracing with OTLP export
 - 📝 **Structured Logging** - JSON logs with correlation IDs
@@ -57,11 +60,21 @@ graph LR
 - 📈 **Admin Dashboard** - Web-based monitoring and management
 
 ### Documentation
+
 - 📚 **OpenAPI 3.0 Specification** - Auto-generated from code
 - 🎨 **Swagger UI** - Interactive API documentation
 - 📖 **Admin Control Panel** - Web-based administration interface
+- 🤖 **MCP Server** - Model Context Protocol server for AI integration
+
+### Deployment
+
+- 🐳 **Docker** - Container images with multi-stage builds
+- ☸️ **Kubernetes** - Production-ready manifests with Kustomize
+- 🔄 **CI/CD** - GitHub Actions with E2E testing
+- 📦 **Helm** - (Planned) Helm charts for easy deployment
 
 ### Security
+
 - 🔐 **PKCE Support** (Proof Key for Code Exchange)
 - 🔑 **Secure Client Credentials** generation
 - 🛡️ **Scope-based Authorization**
@@ -128,6 +141,75 @@ cargo run --release
 ```bash
 docker-compose up -d
 ```
+
+### Using Kubernetes
+
+Deploy to Kubernetes using Kustomize:
+
+```bash
+# Development
+kubectl apply -k k8s/overlays/dev
+
+# Staging
+kubectl apply -k k8s/overlays/staging
+
+# Production
+kubectl apply -k k8s/overlays/production
+```
+
+See [Kubernetes Deployment Guide](k8s/README.md) for detailed instructions.
+
+## 🤖 MCP Server (AI Integration)
+
+The project includes a Model Context Protocol (MCP) server that enables AI assistants like Claude to interact with the OAuth2 server through natural language commands.
+
+### MCP Server Features
+
+- Register and manage OAuth2 clients
+- Generate and manage access tokens
+- Introspect and revoke tokens
+- Check server health and metrics
+- Access OpenID configuration
+
+### Installation
+
+```bash
+cd mcp-server
+npm install
+cp .env.example .env
+# Edit .env with your OAuth2 server URL
+```
+
+### Configuration
+
+Add to your Claude Desktop configuration:
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "oauth2-server": {
+      "command": "node",
+      "args": ["/path/to/rust_oauth2_server/mcp-server/src/index.js"],
+      "env": {
+        "OAUTH2_BASE_URL": "http://localhost:8080"
+      }
+    }
+  }
+}
+```
+
+### Usage Examples
+
+Once configured, you can ask your AI assistant:
+
+- "Register a new OAuth2 client called 'My App'"
+- "Get an access token for client ID abc123"
+- "Check the health status of the OAuth2 server"
+- "Show me the server metrics"
+
+See [MCP Server Documentation](mcp-server/README.md) for more details.
 
 ## 🔧 Configuration
 
@@ -321,11 +403,13 @@ curl -X POST http://localhost:8080/clients/register \
 ### Authorization Code Flow
 
 1. **Get Authorization Code**:
+
 ```
 http://localhost:8080/oauth/authorize?response_type=code&client_id=CLIENT_ID&redirect_uri=http://localhost:3000/callback&scope=read
 ```
 
-2. **Exchange Code for Token**:
+1. **Exchange Code for Token**:
+
 ```bash
 curl -X POST http://localhost:8080/oauth/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
@@ -452,7 +536,18 @@ Comprehensive documentation is available in the `/docs` directory:
 - **[OAuth2 Flows](docs/flows/authorization-code.md)** - Detailed flow documentation
 - **[API Reference](docs/api/endpoints.md)** - Endpoint documentation
 - **[Deployment](docs/deployment/docker.md)** - Production deployment guides
+- **[Kubernetes Deployment](k8s/README.md)** - K8s manifests and guides
+- **[MCP Server](mcp-server/README.md)** - AI integration with Model Context Protocol
 - **[Observability](docs/observability/metrics.md)** - Monitoring and troubleshooting
+
+### Agent Instructions
+
+For AI-assisted development and operations, see:
+
+- **[Development Agent](.github/agents/development.md)** - Coding guidelines and development workflow
+- **[Operations Agent](.github/agents/operations.md)** - Deployment and troubleshooting
+- **[Database Agent](.github/agents/database.md)** - Database management and optimization
+- **[Security Agent](.github/agents/security.md)** - Security best practices and guidelines
 
 ## 📄 License
 

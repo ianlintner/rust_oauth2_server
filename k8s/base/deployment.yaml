@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-server
+  namespace: oauth2-server
+  labels:
+    app: oauth2-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: oauth2-server
+  template:
+    metadata:
+      labels:
+        app: oauth2-server
+    spec:
+      serviceAccountName: oauth2-server
+      initContainers:
+        - name: wait-for-migrations
+          image: bitnami/kubectl:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for database migrations job to complete..."
+              kubectl wait --for=condition=complete --timeout=300s job/flyway-migration -n "${KUBERNETES_NAMESPACE}" || true
+              echo "Migration job completed or timed out, checking status..."
+              kubectl get job/flyway-migration -n "${KUBERNETES_NAMESPACE}" || echo "Migration job not found, proceeding..."
+          env:
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+      containers:
+        - name: oauth2-server
+          image: ghcr.io/ianlintner/rust_oauth2_server:latest
+          imagePullPolicy: Always
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              export OAUTH2_DATABASE_URL="postgresql://oauth2_user:${POSTGRES_PASSWORD}@postgres:5432/oauth2"
+              exec /app/rust_oauth2_server
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: OAUTH2_SERVER_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: oauth2-server-config
+                  key: OAUTH2_SERVER_HOST
+            - name: OAUTH2_SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: oauth2-server-config
+                  key: OAUTH2_SERVER_PORT
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-server-secret
+                  key: POSTGRES_PASSWORD
+            - name: OAUTH2_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-server-secret
+                  key: OAUTH2_JWT_SECRET
+            - name: RUST_LOG
+              valueFrom:
+                configMapKeyRef:
+                  name: oauth2-server-config
+                  key: RUST_LOG
+            - name: RUST_BACKTRACE
+              valueFrom:
+                configMapKeyRef:
+                  name: oauth2-server-config
+                  key: RUST_BACKTRACE
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
