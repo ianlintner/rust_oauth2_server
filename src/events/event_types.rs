@@ -10,18 +10,18 @@ pub enum EventType {
     AuthorizationCodeCreated,
     AuthorizationCodeValidated,
     AuthorizationCodeExpired,
-    
+
     // Token events
     TokenCreated,
     TokenValidated,
     TokenRevoked,
     TokenExpired,
-    
+
     // Client events
     ClientRegistered,
     ClientValidated,
     ClientDeleted,
-    
+
     // User events
     UserAuthenticated,
     UserAuthenticationFailed,
@@ -30,6 +30,7 @@ pub enum EventType {
 
 impl EventType {
     /// Get the string representation of the event type
+    #[allow(dead_code)]
     pub fn as_str(&self) -> &'static str {
         match self {
             EventType::AuthorizationCodeCreated => "authorization_code_created",
@@ -63,25 +64,25 @@ pub enum EventSeverity {
 pub struct AuthEvent {
     /// Unique event ID
     pub id: String,
-    
+
     /// Event type
     pub event_type: EventType,
-    
+
     /// When the event occurred
     pub timestamp: DateTime<Utc>,
-    
+
     /// Event severity
     pub severity: EventSeverity,
-    
+
     /// User ID associated with the event (if applicable)
     pub user_id: Option<String>,
-    
+
     /// Client ID associated with the event (if applicable)
     pub client_id: Option<String>,
-    
+
     /// Additional metadata
     pub metadata: HashMap<String, String>,
-    
+
     /// Optional error message
     pub error: Option<String>,
 }
@@ -105,19 +106,20 @@ impl AuthEvent {
             error: None,
         }
     }
-    
+
     /// Add metadata to the event
     pub fn with_metadata(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.metadata.insert(key.into(), value.into());
         self
     }
-    
+
     /// Add an error message to the event
+    #[allow(dead_code)]
     pub fn with_error(mut self, error: impl Into<String>) -> Self {
         self.error = Some(error.into());
         self
     }
-    
+
     /// Convert event to JSON string
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
@@ -161,7 +163,10 @@ mod tests {
         .with_metadata("grant_type", "authorization_code");
 
         assert_eq!(event.metadata.get("scope"), Some(&"read write".to_string()));
-        assert_eq!(event.metadata.get("grant_type"), Some(&"authorization_code".to_string()));
+        assert_eq!(
+            event.metadata.get("grant_type"),
+            Some(&"authorization_code".to_string())
+        );
     }
 
     #[test]

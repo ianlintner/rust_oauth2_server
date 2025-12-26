@@ -1,5 +1,8 @@
 use crate::db::Database;
-use crate::events::{event_actor::{EmitEvent, EventActor}, AuthEvent, EventSeverity, EventType};
+use crate::events::{
+    event_actor::{EmitEvent, EventActor},
+    AuthEvent, EventSeverity, EventType,
+};
 use crate::models::{Claims, OAuth2Error, Token};
 use actix::prelude::*;
 use std::sync::Arc;
@@ -12,14 +15,18 @@ pub struct TokenActor {
 
 impl TokenActor {
     pub fn new(db: Arc<Database>, jwt_secret: String) -> Self {
-        Self { 
-            db, 
+        Self {
+            db,
             jwt_secret,
             event_actor: None,
         }
     }
-    
-    pub fn with_events(db: Arc<Database>, jwt_secret: String, event_actor: Addr<EventActor>) -> Self {
+
+    pub fn with_events(
+        db: Arc<Database>,
+        jwt_secret: String,
+        event_actor: Addr<EventActor>,
+    ) -> Self {
         Self {
             db,
             jwt_secret,
@@ -88,7 +95,7 @@ impl Handler<CreateToken> for TokenActor {
             );
 
             db.save_token(&token).await?;
-            
+
             // Emit event
             if let Some(event_actor) = event_actor {
                 let event = AuthEvent::new(
@@ -99,10 +106,10 @@ impl Handler<CreateToken> for TokenActor {
                 )
                 .with_metadata("scope", msg.scope)
                 .with_metadata("has_refresh_token", msg.include_refresh.to_string());
-                
+
                 event_actor.do_send(EmitEvent { event });
             }
-            
+
             Ok(token)
         })
     }
@@ -138,10 +145,10 @@ impl Handler<ValidateToken> for TokenActor {
                     );
                     event_actor.do_send(EmitEvent { event });
                 }
-                
+
                 return Err(OAuth2Error::invalid_grant("Token is expired or revoked"));
             }
-            
+
             // Emit validated event
             if let Some(event_actor) = event_actor {
                 let event = AuthEvent::new(
@@ -174,9 +181,9 @@ impl Handler<RevokeToken> for TokenActor {
         Box::pin(async move {
             // Get token info before revoking for event
             let token_info = db.get_token_by_access_token(&msg.token).await?;
-            
+
             db.revoke_token(&msg.token).await?;
-            
+
             // Emit revoked event
             if let Some(event_actor) = event_actor {
                 if let Some(token) = token_info {
@@ -189,7 +196,7 @@ impl Handler<RevokeToken> for TokenActor {
                     event_actor.do_send(EmitEvent { event });
                 }
             }
-            
+
             Ok(())
         })
     }

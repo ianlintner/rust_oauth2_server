@@ -55,7 +55,7 @@ struct ApiDoc;
 // Helper function to parse event types from configuration strings
 fn parse_event_types(event_type_strings: &[String]) -> Vec<events::EventType> {
     use events::EventType;
-    
+
     event_type_strings
         .iter()
         .filter_map(|s| match s.as_str() {
@@ -137,9 +137,9 @@ async fn main() -> std::io::Result<()> {
 
     // Initialize event system first
     let event_actor = if config.events.enabled {
-        use events::{EventFilter, InMemoryEventLogger, ConsoleEventLogger};
+        use events::{ConsoleEventLogger, EventFilter, InMemoryEventLogger};
         use std::sync::Arc;
-        
+
         // Parse event filter from config
         let filter = match config.events.filter_mode.as_str() {
             "include" => {
@@ -152,7 +152,7 @@ async fn main() -> std::io::Result<()> {
             }
             _ => EventFilter::allow_all(),
         };
-        
+
         // Create plugins based on backend config
         let plugins: Vec<Arc<dyn events::EventPlugin>> = match config.events.backend.as_str() {
             "console" => vec![Arc::new(ConsoleEventLogger::new())],
@@ -162,11 +162,14 @@ async fn main() -> std::io::Result<()> {
                 Arc::new(ConsoleEventLogger::new()),
             ],
             _ => {
-                tracing::warn!("Unknown event backend: {}, using in_memory", config.events.backend);
+                tracing::warn!(
+                    "Unknown event backend: {}, using in_memory",
+                    config.events.backend
+                );
                 vec![Arc::new(InMemoryEventLogger::new(1000))]
             }
         };
-        
+
         let actor = events::event_actor::EventActor::new(plugins, filter).start();
         tracing::info!("Event system initialized");
         Some(actor)
@@ -181,13 +184,13 @@ async fn main() -> std::io::Result<()> {
     } else {
         actors::TokenActor::new(db.clone(), jwt_secret.clone()).start()
     };
-    
+
     let client_actor = if let Some(ref event_actor) = event_actor {
         actors::ClientActor::with_events(db.clone(), event_actor.clone()).start()
     } else {
         actors::ClientActor::new(db.clone()).start()
     };
-    
+
     let auth_actor = if let Some(ref event_actor) = event_actor {
         actors::AuthActor::with_events(db.clone(), event_actor.clone()).start()
     } else {
@@ -233,12 +236,12 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(db.clone()))
             .app_data(web::Data::new(metrics.clone()))
             .app_data(web::Data::new(social_config.clone()));
-        
+
         // Add event actor if enabled
         if let Some(ref event_actor) = event_actor {
             app = app.app_data(web::Data::new(event_actor.clone()));
         }
-        
+
         app
             // Root route
             .route(

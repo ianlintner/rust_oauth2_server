@@ -8,10 +8,10 @@ use std::sync::{Arc, RwLock};
 pub trait EventPlugin: Send + Sync {
     /// Emit an event to the backend
     async fn emit(&self, event: &AuthEvent) -> Result<(), String>;
-    
+
     /// Get the name of the plugin
     fn name(&self) -> &str;
-    
+
     /// Check if the plugin is healthy
     async fn health_check(&self) -> bool {
         true
@@ -24,10 +24,10 @@ pub struct EventFilter {
     /// If true, only emit events in the include list
     /// If false, emit all events except those in the exclude list
     pub use_include_list: bool,
-    
+
     /// Events to include (when use_include_list is true)
     pub include: HashSet<EventType>,
-    
+
     /// Events to exclude (when use_include_list is false)
     pub exclude: HashSet<EventType>,
 }
@@ -41,7 +41,7 @@ impl EventFilter {
             exclude: HashSet::new(),
         }
     }
-    
+
     /// Create a new filter with an inclusion list
     pub fn include_only(events: Vec<EventType>) -> Self {
         Self {
@@ -50,7 +50,7 @@ impl EventFilter {
             exclude: HashSet::new(),
         }
     }
-    
+
     /// Create a new filter with an exclusion list
     pub fn exclude_events(events: Vec<EventType>) -> Self {
         Self {
@@ -59,7 +59,7 @@ impl EventFilter {
             exclude: events.into_iter().collect(),
         }
     }
-    
+
     /// Check if an event type should be emitted
     pub fn should_emit(&self, event_type: &EventType) -> bool {
         if self.use_include_list {
@@ -84,13 +84,15 @@ impl InMemoryEventLogger {
             max_events,
         }
     }
-    
+
     /// Get all stored events
+    #[allow(dead_code)]
     pub fn get_events(&self) -> Vec<AuthEvent> {
         self.events.read().unwrap().clone()
     }
-    
+
     /// Get recent events (up to limit)
+    #[allow(dead_code)]
     pub fn get_recent_events(&self, limit: usize) -> Vec<AuthEvent> {
         let events = self.events.read().unwrap();
         let start = if events.len() > limit {
@@ -100,8 +102,9 @@ impl InMemoryEventLogger {
         };
         events[start..].to_vec()
     }
-    
+
     /// Clear all events
+    #[allow(dead_code)]
     pub fn clear(&self) {
         self.events.write().unwrap().clear();
     }
@@ -111,26 +114,27 @@ impl InMemoryEventLogger {
 impl EventPlugin for InMemoryEventLogger {
     async fn emit(&self, event: &AuthEvent) -> Result<(), String> {
         let mut events = self.events.write().unwrap();
-        
+
         // Add event
         events.push(event.clone());
-        
+
         // Keep only max_events
         if events.len() > self.max_events {
             let excess = events.len() - self.max_events;
             events.drain(0..excess);
         }
-        
+
         tracing::debug!("Event logged: {:?}", event.event_type);
         Ok(())
     }
-    
+
     fn name(&self) -> &str {
         "in_memory"
     }
 }
 
 /// Console event logger (logs to stdout)
+#[derive(Default)]
 pub struct ConsoleEventLogger;
 
 impl ConsoleEventLogger {
@@ -150,7 +154,7 @@ impl EventPlugin for ConsoleEventLogger {
             Err(e) => Err(format!("Failed to serialize event: {}", e)),
         }
     }
-    
+
     fn name(&self) -> &str {
         "console"
     }
@@ -170,11 +174,9 @@ mod tests {
 
     #[test]
     fn test_event_filter_include_only() {
-        let filter = EventFilter::include_only(vec![
-            EventType::TokenCreated,
-            EventType::TokenRevoked,
-        ]);
-        
+        let filter =
+            EventFilter::include_only(vec![EventType::TokenCreated, EventType::TokenRevoked]);
+
         assert!(filter.should_emit(&EventType::TokenCreated));
         assert!(filter.should_emit(&EventType::TokenRevoked));
         assert!(!filter.should_emit(&EventType::ClientRegistered));
@@ -182,10 +184,8 @@ mod tests {
 
     #[test]
     fn test_event_filter_exclude() {
-        let filter = EventFilter::exclude_events(vec![
-            EventType::TokenValidated,
-        ]);
-        
+        let filter = EventFilter::exclude_events(vec![EventType::TokenValidated]);
+
         assert!(filter.should_emit(&EventType::TokenCreated));
         assert!(!filter.should_emit(&EventType::TokenValidated));
         assert!(filter.should_emit(&EventType::ClientRegistered));
@@ -194,16 +194,16 @@ mod tests {
     #[tokio::test]
     async fn test_in_memory_logger() {
         let logger = InMemoryEventLogger::new(10);
-        
+
         let event = AuthEvent::new(
             EventType::TokenCreated,
             EventSeverity::Info,
             Some("user_123".to_string()),
             None,
         );
-        
+
         logger.emit(&event).await.unwrap();
-        
+
         let events = logger.get_events();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event_type, EventType::TokenCreated);
@@ -212,7 +212,7 @@ mod tests {
     #[tokio::test]
     async fn test_in_memory_logger_max_events() {
         let logger = InMemoryEventLogger::new(3);
-        
+
         // Add 5 events
         for i in 0..5 {
             let event = AuthEvent::new(
@@ -223,7 +223,7 @@ mod tests {
             );
             logger.emit(&event).await.unwrap();
         }
-        
+
         let events = logger.get_events();
         assert_eq!(events.len(), 3); // Only last 3 events
         assert_eq!(events[0].user_id, Some("user_2".to_string()));

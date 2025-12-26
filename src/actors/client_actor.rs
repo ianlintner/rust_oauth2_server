@@ -1,5 +1,8 @@
 use crate::db::Database;
-use crate::events::{event_actor::{EmitEvent, EventActor}, AuthEvent, EventSeverity, EventType};
+use crate::events::{
+    event_actor::{EmitEvent, EventActor},
+    AuthEvent, EventSeverity, EventType,
+};
 use crate::models::{Client, ClientRegistration, OAuth2Error};
 use actix::prelude::*;
 use rand::Rng;
@@ -12,12 +15,12 @@ pub struct ClientActor {
 
 impl ClientActor {
     pub fn new(db: Arc<Database>) -> Self {
-        Self { 
+        Self {
             db,
             event_actor: None,
         }
     }
-    
+
     pub fn with_events(db: Arc<Database>, event_actor: Addr<EventActor>) -> Self {
         Self {
             db,
@@ -58,7 +61,7 @@ impl Handler<RegisterClient> for ClientActor {
             );
 
             db.save_client(&client).await?;
-            
+
             // Emit event
             if let Some(event_actor) = event_actor {
                 let event = AuthEvent::new(
@@ -69,10 +72,10 @@ impl Handler<RegisterClient> for ClientActor {
                 )
                 .with_metadata("client_name", msg.registration.client_name)
                 .with_metadata("scope", msg.registration.scope);
-                
+
                 event_actor.do_send(EmitEvent { event });
             }
-            
+
             Ok(client)
         })
     }
@@ -125,7 +128,7 @@ impl Handler<ValidateClient> for ClientActor {
                 .as_bytes()
                 .ct_eq(msg.client_secret.as_bytes())
                 .into();
-            
+
             // Emit event
             if let Some(event_actor) = event_actor {
                 let event = AuthEvent::new(
@@ -135,7 +138,7 @@ impl Handler<ValidateClient> for ClientActor {
                     Some(msg.client_id),
                 )
                 .with_metadata("success", if secret_match { "true" } else { "false" });
-                
+
                 event_actor.do_send(EmitEvent { event });
             }
 

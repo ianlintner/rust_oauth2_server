@@ -1,5 +1,8 @@
 use crate::db::Database;
-use crate::events::{event_actor::{EmitEvent, EventActor}, AuthEvent, EventSeverity, EventType};
+use crate::events::{
+    event_actor::{EmitEvent, EventActor},
+    AuthEvent, EventSeverity, EventType,
+};
 use crate::models::{AuthorizationCode, OAuth2Error};
 use actix::prelude::*;
 use rand::Rng;
@@ -12,12 +15,12 @@ pub struct AuthActor {
 
 impl AuthActor {
     pub fn new(db: Arc<Database>) -> Self {
-        Self { 
+        Self {
             db,
             event_actor: None,
         }
     }
-    
+
     pub fn with_events(db: Arc<Database>, event_actor: Addr<EventActor>) -> Self {
         Self {
             db,
@@ -61,7 +64,7 @@ impl Handler<CreateAuthorizationCode> for AuthActor {
             );
 
             db.save_authorization_code(&auth_code).await?;
-            
+
             // Emit event
             if let Some(event_actor) = event_actor {
                 let event = AuthEvent::new(
@@ -72,10 +75,10 @@ impl Handler<CreateAuthorizationCode> for AuthActor {
                 )
                 .with_metadata("scope", msg.scope)
                 .with_metadata("redirect_uri", msg.redirect_uri);
-                
+
                 event_actor.do_send(EmitEvent { event });
             }
-            
+
             Ok(auth_code)
         })
     }
@@ -114,7 +117,7 @@ impl Handler<ValidateAuthorizationCode> for AuthActor {
                     );
                     event_actor.do_send(EmitEvent { event });
                 }
-                
+
                 return Err(OAuth2Error::invalid_grant(
                     "Authorization code is expired or used",
                 ));
@@ -145,7 +148,7 @@ impl Handler<ValidateAuthorizationCode> for AuthActor {
 
             // Mark as used
             db.mark_authorization_code_used(&msg.code).await?;
-            
+
             // Emit validated event
             if let Some(event_actor) = event_actor {
                 let event = AuthEvent::new(

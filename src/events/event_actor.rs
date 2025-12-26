@@ -13,22 +13,21 @@ impl EventActor {
     pub fn new(plugins: Vec<Arc<dyn EventPlugin>>, filter: EventFilter) -> Self {
         Self { plugins, filter }
     }
-    
+
     /// Create a new event actor with default plugins
+    #[allow(dead_code)]
     pub fn with_default_plugins(filter: EventFilter) -> Self {
         use crate::events::InMemoryEventLogger;
-        
-        let plugins: Vec<Arc<dyn EventPlugin>> = vec![
-            Arc::new(InMemoryEventLogger::new(1000)),
-        ];
-        
+
+        let plugins: Vec<Arc<dyn EventPlugin>> = vec![Arc::new(InMemoryEventLogger::new(1000))];
+
         Self { plugins, filter }
     }
 }
 
 impl Actor for EventActor {
     type Context = Context<Self>;
-    
+
     fn started(&mut self, _ctx: &mut Self::Context) {
         tracing::info!("EventActor started with {} plugin(s)", self.plugins.len());
     }
@@ -43,17 +42,17 @@ pub struct EmitEvent {
 
 impl Handler<EmitEvent> for EventActor {
     type Result = ResponseFuture<()>;
-    
+
     fn handle(&mut self, msg: EmitEvent, _: &mut Self::Context) -> Self::Result {
         // Check if event should be emitted based on filter
         if !self.filter.should_emit(&msg.event.event_type) {
             tracing::trace!("Event {:?} filtered out", msg.event.event_type);
             return Box::pin(async {});
         }
-        
+
         let plugins = self.plugins.clone();
         let event = msg.event;
-        
+
         Box::pin(async move {
             // Emit to all plugins in parallel
             let futures: Vec<_> = plugins
@@ -72,7 +71,7 @@ impl Handler<EmitEvent> for EventActor {
                     }
                 })
                 .collect();
-            
+
             futures::future::join_all(futures).await;
         })
     }
@@ -85,19 +84,19 @@ pub struct GetPluginHealth;
 
 impl Handler<GetPluginHealth> for EventActor {
     type Result = ResponseFuture<Vec<(String, bool)>>;
-    
+
     fn handle(&mut self, _msg: GetPluginHealth, _: &mut Self::Context) -> Self::Result {
         let plugins = self.plugins.clone();
-        
+
         Box::pin(async move {
             let mut results = Vec::new();
-            
+
             for plugin in plugins.iter() {
                 let name = plugin.name().to_string();
                 let healthy = plugin.health_check().await;
                 results.push((name, healthy));
             }
-            
+
             results
         })
     }
@@ -113,21 +112,21 @@ mod tests {
         let logger = Arc::new(InMemoryEventLogger::new(10));
         let plugins: Vec<Arc<dyn EventPlugin>> = vec![logger.clone()];
         let filter = EventFilter::allow_all();
-        
+
         let actor = EventActor::new(plugins, filter).start();
-        
+
         let event = AuthEvent::new(
             EventType::TokenCreated,
             EventSeverity::Info,
             Some("user_123".to_string()),
             Some("client_456".to_string()),
         );
-        
+
         actor.send(EmitEvent { event }).await.unwrap();
-        
+
         // Give actor time to process
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        
+
         let events = logger.get_events();
         assert_eq!(events.len(), 1);
     }
@@ -137,9 +136,9 @@ mod tests {
         let logger = Arc::new(InMemoryEventLogger::new(10));
         let plugins: Vec<Arc<dyn EventPlugin>> = vec![logger.clone()];
         let filter = EventFilter::include_only(vec![EventType::TokenCreated]);
-        
+
         let actor = EventActor::new(plugins, filter).start();
-        
+
         // This should be emitted
         let event1 = AuthEvent::new(
             EventType::TokenCreated,
@@ -148,7 +147,7 @@ mod tests {
             None,
         );
         actor.send(EmitEvent { event: event1 }).await.unwrap();
-        
+
         // This should be filtered out
         let event2 = AuthEvent::new(
             EventType::ClientRegistered,
@@ -157,10 +156,10 @@ mod tests {
             None,
         );
         actor.send(EmitEvent { event: event2 }).await.unwrap();
-        
+
         // Give actor time to process
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        
+
         let events = logger.get_events();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event_type, EventType::TokenCreated);
@@ -171,9 +170,9 @@ mod tests {
         let logger = Arc::new(InMemoryEventLogger::new(10));
         let plugins: Vec<Arc<dyn EventPlugin>> = vec![logger];
         let filter = EventFilter::allow_all();
-        
+
         let actor = EventActor::new(plugins, filter).start();
-        
+
         let health = actor.send(GetPluginHealth).await.unwrap();
         assert_eq!(health.len(), 1);
         assert_eq!(health[0].0, "in_memory");
