@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["SocialLoginService"]};
+window.SIDEBAR_ITEMS = {"struct":["SocialLoginService"],"type":["ConfiguredClient"]};

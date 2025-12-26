@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["rust_oauth2_server",[["impl ComposeSchema for <a class=\"struct\" href=\"rust_oauth2_server/models/client/struct.Client.html\" title=\"struct rust_oauth2_server::models::client::Client\">Client</a>"],["impl ComposeSchema for <a class=\"struct\" href=\"rust_oauth2_server/models/client/struct.ClientCredentials.html\" title=\"struct rust_oauth2_server::models::client::ClientCredentials\">ClientCredentials</a>"],["impl ComposeSchema for <a class=\"struct\" href=\"rust_oauth2_server/models/client/struct.ClientRegistration.html\" title=\"struct rust_oauth2_server::models::client::ClientRegistration\">ClientRegistration</a>"],["impl ComposeSchema for <a class=\"struct\" href=\"rust_oauth2_server/models/error/struct.OAuth2Error.html\" title=\"struct rust_oauth2_server::models::error::OAuth2Error\">OAuth2Error</a>"],["impl ComposeSchema for <a class=\"struct\" href=\"rust_oauth2_server/models/token/struct.Claims.html\" title=\"struct rust_oauth2_server::models::token::Claims\">Claims</a>"],["impl ComposeSchema for <a class=\"struct\" href=\"rust_oauth2_server/models/token/struct.IntrospectionResponse.html\" title=\"struct rust_oauth2_server::models::token::IntrospectionResponse\">IntrospectionResponse</a>"],["impl ComposeSchema for <a class=\"struct\" href=\"rust_oauth2_server/models/token/struct.Token.html\" title=\"struct rust_oauth2_server::models::token::Token\">Token</a>"],["impl ComposeSchema for <a class=\"struct\" href=\"rust_oauth2_server/models/token/struct.TokenResponse.html\" title=\"struct rust_oauth2_server::models::token::TokenResponse\">TokenResponse</a>"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[1593]}
