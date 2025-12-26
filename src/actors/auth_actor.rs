@@ -24,12 +24,6 @@ impl AuthActor {
             event_actor: Some(event_actor),
         }
     }
-    
-    fn emit_event(&self, event: AuthEvent) {
-        if let Some(ref actor) = self.event_actor {
-            actor.do_send(EmitEvent { event });
-        }
-    }
 }
 
 impl Actor for AuthActor {

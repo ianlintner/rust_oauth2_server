@@ -120,7 +120,7 @@ impl Handler<ValidateClient> for ClientActor {
 
             // Use constant-time comparison to prevent timing attacks
             use subtle::ConstantTimeEq;
-            let secret_match: bool = client
+            let secret_match = client
                 .client_secret
                 .as_bytes()
                 .ct_eq(msg.client_secret.as_bytes())
@@ -134,7 +134,7 @@ impl Handler<ValidateClient> for ClientActor {
                     None,
                     Some(msg.client_id),
                 )
-                .with_metadata("success", secret_match.to_string());
+                .with_metadata("success", if secret_match { "true" } else { "false" });
                 
                 event_actor.do_send(EmitEvent { event });
             }
