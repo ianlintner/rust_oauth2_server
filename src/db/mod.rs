@@ -28,9 +28,140 @@ impl Database {
     }
 
     pub async fn init(&self) -> Result<(), sqlx::Error> {
-        // With Flyway, we don't need to create tables here
-        // Just verify the connection works
+        // In Kubernetes/KIND E2E runs we don't have Flyway creating tables for SQLite,
+        // so make sure the schema exists. These statements are idempotent and cheap.
+        self.bootstrap_sqlite_schema().await?;
+
+        // Verify the connection works
         sqlx::query("SELECT 1").execute(&self.pool).await?;
+        Ok(())
+    }
+
+    async fn bootstrap_sqlite_schema(&self) -> Result<(), sqlx::Error> {
+        // Clients
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS clients (
+                id TEXT PRIMARY KEY,
+                client_id TEXT NOT NULL UNIQUE,
+                client_secret TEXT NOT NULL,
+                redirect_uris TEXT NOT NULL,
+                grant_types TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                name TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            r#"CREATE INDEX IF NOT EXISTS idx_clients_client_id ON clients(client_id);"#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        // Users
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                email TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(r#"CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);"#)
+            .execute(&self.pool)
+            .await?;
+        sqlx::query(r#"CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);"#)
+            .execute(&self.pool)
+            .await?;
+
+        // Tokens
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS tokens (
+                id TEXT PRIMARY KEY,
+                access_token TEXT NOT NULL UNIQUE,
+                refresh_token TEXT,
+                token_type TEXT NOT NULL,
+                expires_in INTEGER NOT NULL,
+                scope TEXT NOT NULL,
+                client_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                revoked INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(r#"CREATE INDEX IF NOT EXISTS idx_tokens_access_token ON tokens(access_token);"#)
+            .execute(&self.pool)
+            .await?;
+        sqlx::query(r#"CREATE INDEX IF NOT EXISTS idx_tokens_refresh_token ON tokens(refresh_token);"#)
+            .execute(&self.pool)
+            .await?;
+        sqlx::query(r#"CREATE INDEX IF NOT EXISTS idx_tokens_client_id ON tokens(client_id);"#)
+            .execute(&self.pool)
+            .await?;
+        sqlx::query(r#"CREATE INDEX IF NOT EXISTS idx_tokens_user_id ON tokens(user_id);"#)
+            .execute(&self.pool)
+            .await?;
+
+        // Authorization codes
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS authorization_codes (
+                id TEXT PRIMARY KEY,
+                code TEXT NOT NULL UNIQUE,
+                client_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                redirect_uri TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                used INTEGER NOT NULL DEFAULT 0,
+                code_challenge TEXT,
+                code_challenge_method TEXT,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            r#"CREATE INDEX IF NOT EXISTS idx_authorization_codes_code ON authorization_codes(code);"#,
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            r#"CREATE INDEX IF NOT EXISTS idx_authorization_codes_client_id ON authorization_codes(client_id);"#,
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            r#"CREATE INDEX IF NOT EXISTS idx_authorization_codes_user_id ON authorization_codes(user_id);"#,
+        )
+        .execute(&self.pool)
+        .await?;
+
         Ok(())
     }
 
