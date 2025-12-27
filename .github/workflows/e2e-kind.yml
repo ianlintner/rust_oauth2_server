@@ -53,7 +53,9 @@ jobs:
           config: kind-config.yaml
 
       - name: Build Docker image
-        timeout-minutes: 5
+        # Cold builds (especially first-time cargo-chef cache population) can exceed 5 minutes.
+        # Keep this generous to avoid flaky CI failures.
+        timeout-minutes: 20
         uses: docker/build-push-action@v5
         with:
           context: .
