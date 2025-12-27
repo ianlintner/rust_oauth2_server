@@ -3,6 +3,9 @@ use std::{fs, path::PathBuf, time::Duration};
 use testcontainers::clients::Cli;
 use testcontainers_modules::postgres::Postgres as TcPostgres;
 
+use rust_oauth2_server::models::Token;
+use uuid::Uuid;
+
 // This test spins up a disposable Postgres via Testcontainers, applies our SQLx migrations,
 // and verifies the schema is valid. Skips automatically unless RUN_TESTCONTAINERS=1 is set
 // to avoid breaking environments without Docker (e.g., CI without privileges).
@@ -57,6 +60,64 @@ async fn migrations_apply_successfully_on_postgres() -> Result<(), Box<dyn std::
 
     // Simple sanity check
     pool.execute("SELECT 1").await?;
+
+    // Regression check: ensure we can decode a Token row from Postgres.
+    // This protects against Rust/SQL type mismatches (e.g., INT4 vs i64) that only show up at runtime.
+    let client_row_id = Uuid::new_v4().to_string();
+    sqlx::query(
+        r#"
+        INSERT INTO clients (id, client_id, client_secret, redirect_uris, grant_types, scope, name, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, now(), now())
+        ON CONFLICT (client_id) DO NOTHING
+        "#,
+    )
+    .bind(&client_row_id)
+    .bind("test_client_id")
+    .bind("test_client_secret")
+    .bind("[]")
+    .bind("[\"client_credentials\"]")
+    .bind("read")
+    .bind("test")
+    .execute(&pool)
+    .await?;
+
+    let token_row_id = Uuid::new_v4().to_string();
+    sqlx::query(
+        r#"
+        INSERT INTO tokens (
+            id,
+            access_token,
+            refresh_token,
+            token_type,
+            expires_in,
+            scope,
+            client_id,
+            user_id,
+            created_at,
+            expires_at,
+            revoked
+        )
+        VALUES ($1, $2, NULL, $3, $4, $5, $6, NULL, now(), now() + interval '1 hour', FALSE)
+        ON CONFLICT (access_token) DO NOTHING
+        "#,
+    )
+    .bind(&token_row_id)
+    .bind("test_access_token")
+    .bind("Bearer")
+    .bind(3600_i32)
+    .bind("read")
+    .bind("test_client_id")
+    .execute(&pool)
+    .await?;
+
+    let token: Token = sqlx::query_as("SELECT * FROM tokens WHERE access_token = $1")
+        .bind("test_access_token")
+        .fetch_one(&pool)
+        .await?;
+
+    assert_eq!(token.access_token, "test_access_token");
+    assert_eq!(token.expires_in, 3600);
+    assert!(token.is_valid());
 
     Ok(())
 }
