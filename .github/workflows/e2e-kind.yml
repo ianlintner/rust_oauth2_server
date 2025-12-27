@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
 
 jobs:
@@ -23,26 +24,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build Rust binary
-        run: |
-          cargo build --release
-          ls -lh target/release/
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: e2e-kind
+          cache-on-failure: true
 
       - name: Create KIND cluster config
         run: |
@@ -65,9 +54,18 @@ jobs:
 
       - name: Build Docker image
         timeout-minutes: 5
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.ci
+          tags: docker.io/ianlintner068/oauth2-server:test
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Load image into KIND
         run: |
-          docker build -f Dockerfile.ci -t docker.io/${{ secrets.DOCKER_USERNAME }}/oauth2-server:test .
-          kind load docker-image docker.io/${{ secrets.DOCKER_USERNAME }}/oauth2-server:test --name oauth2-test
+          kind load docker-image docker.io/ianlintner068/oauth2-server:test --name oauth2-test
 
       - name: Install kustomize
         run: |
@@ -104,7 +102,7 @@ jobs:
             - service-nodeport.yaml
           
           images:
-            - name: docker.io/${{ secrets.DOCKER_USERNAME }}/oauth2-server
+            - name: docker.io/ianlintner068/oauth2-server
               newTag: test
           
           commonLabels:
