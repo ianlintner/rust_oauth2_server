@@ -94,6 +94,12 @@ async fn main() -> std::io::Result<()> {
     // Load configuration
     let config = config::Config::default();
 
+    if std::env::var("OAUTH2_DEBUG_CONFIG").ok().as_deref() == Some("1") {
+        if let Ok(cfg_json) = serde_json::to_string_pretty(&config.sanitized()) {
+            tracing::info!(config = %cfg_json, "Loaded configuration (sanitized)");
+        }
+    }
+
     // Validate configuration for production
     if let Err(e) = config.validate_for_production() {
         tracing::warn!("Configuration validation warning: {}", e);

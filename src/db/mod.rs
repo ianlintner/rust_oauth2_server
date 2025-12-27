@@ -1,13 +1,20 @@
 #![allow(dead_code)]
 
 use crate::models::{AuthorizationCode, Client, OAuth2Error, Token, User};
-use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::{Pool, Sqlite, SqlitePool};
+use sqlx::AnyPool;
+use sqlx::any::AnyPoolOptions;
 use std::path::Path;
 use std::str::FromStr;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DbBackend {
+    Sqlite,
+    Other,
+}
+
 pub struct Database {
-    pool: Pool<Sqlite>,
+    pool: AnyPool,
+    backend: DbBackend,
 }
 
 impl Database {
@@ -16,21 +23,35 @@ impl Database {
         // directory for the sqlite DB file doesn't exist or isn't writable yet.
         // This proactively creates the parent directory (when we can infer one) and tells sqlx
         // to create the database file if missing.
+        let backend = if database_url.starts_with("sqlite:") {
+            DbBackend::Sqlite
+        } else {
+            DbBackend::Other
+        };
+
         if let Some(parent_dir) = sqlite_parent_dir(database_url) {
             // Best-effort: if we can't create it (permissions, etc.), sqlx will surface the
             // underlying error on connect.
             let _ = std::fs::create_dir_all(parent_dir);
         }
 
-        let options = SqliteConnectOptions::from_str(database_url)?.create_if_missing(true);
-        let pool = SqlitePool::connect_with(options).await?;
-        Ok(Self { pool })
+        // Use AnyPool so we can run against SQLite (local/dev) and Postgres (KIND E2E).
+        // SQLite will create the file if the directory exists; for Postgres, the URL must point
+        // to an existing database (handled by Flyway or bootstrap below).
+        let pool = AnyPoolOptions::new()
+            .max_connections(5)
+            .connect(database_url)
+            .await?;
+        Ok(Self { pool, backend })
     }
 
     pub async fn init(&self) -> Result<(), sqlx::Error> {
-        // In Kubernetes/KIND E2E runs we don't have Flyway creating tables for SQLite,
-        // so make sure the schema exists. These statements are idempotent and cheap.
-        self.bootstrap_sqlite_schema().await?;
+        // Only bootstrap when using SQLite. Postgres is expected to be provisioned by Flyway.
+        if self.backend == DbBackend::Sqlite {
+            // In Kubernetes/KIND E2E runs without Flyway, make sure the schema exists.
+            // These statements are idempotent and cheap for SQLite.
+            self.bootstrap_sqlite_schema().await?;
+        }
 
         // Verify the connection works
         sqlx::query("SELECT 1").execute(&self.pool).await?;
