@@ -139,6 +139,8 @@ jobs:
             -url=jdbc:postgresql://localhost:5432/oauth2_test \
             -user=test_user \
             -password=test_password \
+            -connectRetries=20 \
+            -connectRetriesInterval=3 \
             -locations=filesystem:/flyway/sql \
             migrate
 
